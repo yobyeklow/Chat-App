@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:18.3-alpine3.23
+    container_name: postgres-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    networks:
+      - app-networks
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api.dev
+    container_name: web-socket-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    volumes:
+      - ./:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-networks
+volumes:
+  pgdata:
+
+networks:
+  app-networks:
+    driver: bridge
