@@ -7,6 +7,8 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -57,6 +59,105 @@ WHERE user_email = $1::TEXT and user_deleted_at IS NULL
 
 func (q *Queries) FindUserByEmail(ctx context.Context, userEmail string) (User, error) {
 	row := q.db.QueryRow(ctx, findUserByEmail, userEmail)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.UserUuid,
+		&i.UserEmail,
+		&i.UserPassword,
+		&i.UserRole,
+		&i.UserStatus,
+		&i.UserCreatedAt,
+		&i.UserUpdatedAt,
+		&i.UserDeletedAt,
+	)
+	return i, err
+}
+
+const findUserByUUID = `-- name: FindUserByUUID :one
+SELECT user_id, user_uuid, user_email, user_password, user_role, user_status, user_created_at, user_updated_at, user_deleted_at
+FROM users
+WHERE user_uuid = $1::UUID and user_deleted_at IS NULL
+`
+
+func (q *Queries) FindUserByUUID(ctx context.Context, userUuid uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, findUserByUUID, userUuid)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.UserUuid,
+		&i.UserEmail,
+		&i.UserPassword,
+		&i.UserRole,
+		&i.UserStatus,
+		&i.UserCreatedAt,
+		&i.UserUpdatedAt,
+		&i.UserDeletedAt,
+	)
+	return i, err
+}
+
+const hardDelete = `-- name: HardDelete :one
+DELETE FROM users
+WHERE
+    user_uuid = $1::UUID AND user_deleted_at IS NOT NULL
+RETURNING user_id, user_uuid, user_email, user_password, user_role, user_status, user_created_at, user_updated_at, user_deleted_at
+`
+
+func (q *Queries) HardDelete(ctx context.Context, userUuid uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, hardDelete, userUuid)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.UserUuid,
+		&i.UserEmail,
+		&i.UserPassword,
+		&i.UserRole,
+		&i.UserStatus,
+		&i.UserCreatedAt,
+		&i.UserUpdatedAt,
+		&i.UserDeletedAt,
+	)
+	return i, err
+}
+
+const restoreUser = `-- name: RestoreUser :one
+UPDATE users
+SET
+    user_deleted_at = NULL
+WHERE
+    user_uuid = $1::uuid AND user_deleted_at IS NOT NULL
+RETURNING user_id, user_uuid, user_email, user_password, user_role, user_status, user_created_at, user_updated_at, user_deleted_at
+`
+
+func (q *Queries) RestoreUser(ctx context.Context, userUuid uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, restoreUser, userUuid)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.UserUuid,
+		&i.UserEmail,
+		&i.UserPassword,
+		&i.UserRole,
+		&i.UserStatus,
+		&i.UserCreatedAt,
+		&i.UserUpdatedAt,
+		&i.UserDeletedAt,
+	)
+	return i, err
+}
+
+const softDelete = `-- name: SoftDelete :one
+UPDATE users
+SET
+    user_deleted_at = now()
+WHERE
+    user_uuid = $1::UUID AND user_deleted_at IS NULL
+RETURNING user_id, user_uuid, user_email, user_password, user_role, user_status, user_created_at, user_updated_at, user_deleted_at
+`
+
+func (q *Queries) SoftDelete(ctx context.Context, userUuid uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, softDelete, userUuid)
 	var i User
 	err := row.Scan(
 		&i.UserID,

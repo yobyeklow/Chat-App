@@ -19,6 +19,9 @@ type UserDTO struct {
 type GetUserByEmailParam struct {
 	Email string `uri:"email" binding:"email,email_advanced"`
 }
+type GetUserByUUIDParam struct {
+	Uuid string `uri:"uuid" binding:"uuid"`
+}
 
 func (input *UserInput) MapCreateInputToModel() sqlc.CreateUserParams {
 	return sqlc.CreateUserParams{

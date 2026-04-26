@@ -3,6 +3,8 @@ package routes
 import (
 	"web_socket/internal/middleware"
 	"web_socket/internal/utils"
+	"web_socket/pkg/auth"
+	"web_socket/pkg/cache"
 
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -12,7 +14,7 @@ type Routes interface {
 	Register(r *gin.RouterGroup)
 }
 
-func RegisterRoutes(r *gin.Engine, routes ...Routes) {
+func RegisterRoutes(r *gin.Engine, authService auth.TokenService, cacheService cache.RedisService, routes ...Routes) {
 	recoverLogger := utils.NewLoggerWithPath("recovery.log", "warning")
 	rateLimitLogger := utils.NewLoggerWithPath("ratelimit.log", "warning")
 	httpLogger := utils.NewLoggerWithPath("http.log", "info")
@@ -24,7 +26,7 @@ func RegisterRoutes(r *gin.Engine, routes ...Routes) {
 		middleware.RecoveryMiddleware(recoverLogger),
 	)
 	api := r.Group("/api/v1")
-
+	middleware.InitAuthMiddlware(authService, cacheService)
 	for _, route := range routes {
 		route.Register(api)
 	}

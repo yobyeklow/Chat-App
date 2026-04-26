@@ -11,6 +11,51 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type DirectMessage struct {
+	DmID          int32  `json:"dm_id"`
+	SenderID      int32  `json:"sender_id"`
+	ReceiverID    int32  `json:"receiver_id"`
+	DmContent     string `json:"dm_content"`
+	DmAttachments []byte `json:"dm_attachments"`
+	// 1:Text - 2:Image - 3:File
+	DmMessageType *int32             `json:"dm_message_type"`
+	DmReadAt      pgtype.Timestamptz `json:"dm_read_at"`
+	DmCreatedAt   time.Time          `json:"dm_created_at"`
+	DmDeletedAt   pgtype.Timestamptz `json:"dm_deleted_at"`
+}
+
+type Group struct {
+	GroupID        int32              `json:"group_id"`
+	GroupUuid      uuid.UUID          `json:"group_uuid"`
+	GroupName      string             `json:"group_name"`
+	GroupCreatedAt time.Time          `json:"group_created_at"`
+	GroupUpdatedAt time.Time          `json:"group_updated_at"`
+	GroupDeletedAt pgtype.Timestamptz `json:"group_deleted_at"`
+}
+
+type GroupMember struct {
+	GroupMemberID int32 `json:"group_member_id"`
+	GroupID       int32 `json:"group_id"`
+	UserID        int32 `json:"user_id"`
+	// 1:Member Role - 2:Moderator Role - 3:Adminstator Role
+	MemberRole int32              `json:"member_role"`
+	JointedAt  time.Time          `json:"jointed_at"`
+	LeftAt     pgtype.Timestamptz `json:"left_at"`
+}
+
+type Message struct {
+	MessageID      int32  `json:"message_id"`
+	SenderID       int32  `json:"sender_id"`
+	GroupID        int32  `json:"group_id"`
+	MessageContent string `json:"message_content"`
+	Attachments    []byte `json:"attachments"`
+	// 1:Text - 2:Image - 3:File
+	MessageType      int32              `json:"message_type"`
+	ReplyTo          *int32             `json:"reply_to"`
+	MessageCreatedAt time.Time          `json:"message_created_at"`
+	MessageDeletedAt pgtype.Timestamptz `json:"message_deleted_at"`
+}
+
 type User struct {
 	UserID       int32     `json:"user_id"`
 	UserUuid     uuid.UUID `json:"user_uuid"`

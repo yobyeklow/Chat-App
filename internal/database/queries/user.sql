@@ -11,3 +11,26 @@ INSERT INTO users(
 SELECT *
 FROM users
 WHERE user_email = sqlc.arg(user_email)::TEXT and user_deleted_at IS NULL;
+-- name: FindUserByUUID :one
+SELECT *
+FROM users
+WHERE user_uuid = sqlc.arg(user_uuid)::UUID and user_deleted_at IS NULL;
+-- name: SoftDelete :one
+UPDATE users
+SET
+    user_deleted_at = now()
+WHERE
+    user_uuid = sqlc.arg(user_uuid)::UUID AND user_deleted_at IS NULL
+RETURNING *;
+-- name: HardDelete :one
+DELETE FROM users
+WHERE
+    user_uuid = sqlc.arg(user_uuid)::UUID AND user_deleted_at IS NOT NULL
+RETURNING *;
+-- name: RestoreUser :one
+UPDATE users
+SET
+    user_deleted_at = NULL
+WHERE
+    user_uuid = sqlc.arg(user_uuid)::uuid AND user_deleted_at IS NOT NULL
+RETURNING *;

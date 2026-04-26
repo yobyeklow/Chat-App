@@ -12,6 +12,8 @@ import (
 	"web_socket/internal/routes"
 	"web_socket/internal/validation"
 	"web_socket/internal/ws"
+	"web_socket/pkg/auth"
+	"web_socket/pkg/cache"
 	"web_socket/pkg/logger"
 
 	"web_socket/internal/database/sqlc"
@@ -45,7 +47,9 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		logger.Log.Fatal().Msgf("Database init failed %v", err)
 		return nil, err
 	}
-
+	rdb := config.NewRedisClient()
+	cacheService := cache.NewRedisCacheService(rdb)
+	authService := auth.NewJWTService(cacheService)
 	ctx := &ModuleContext{
 		db:  database.DB,
 		hub: ws.NewHub(),
@@ -54,7 +58,7 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		NewUserModule(ctx),
 		NewWSModule(ctx.hub),
 	}
-	routes.RegisterRoutes(r, getModulesRoute(modules)...)
+	routes.RegisterRoutes(r, authService, cacheService, getModulesRoute(modules)...)
 	return &Application{
 		router:  r,
 		cfg:     cfg,

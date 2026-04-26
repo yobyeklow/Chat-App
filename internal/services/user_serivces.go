@@ -1,14 +1,14 @@
 package services
 
 import (
+	"database/sql"
 	"errors"
 	"web_socket/internal/database/sqlc"
 	"web_socket/internal/repository"
 	"web_socket/internal/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgconn"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/google/uuid"
 )
 
 type userServices struct {
@@ -20,30 +20,59 @@ func NewUserService(repo repository.UserRepository) UserService {
 		repo: repo,
 	}
 }
-func (us *userServices) CreateUser(ctx *gin.Context, userInput sqlc.CreateUserParams) (sqlc.User, error) {
+
+func (us *userServices) FindUserByEmail(ctx *gin.Context, userEmail string) (sqlc.User, error) {
 	context := ctx.Request.Context()
-
-	userInput.UserEmail = utils.NormalizeString(userInput.UserEmail)
-
-	hashed_password, err := bcrypt.GenerateFromPassword([]byte(userInput.UserPassword), bcrypt.DefaultCost)
+	userData, err := us.repo.FindUserByEmail(context, userEmail)
 	if err != nil {
-		return sqlc.User{}, utils.WrapError("Failed to hash password", utils.ErrCodeInternal, err)
-	}
-	userInput.UserPassword = string(hashed_password)
-	userData, err := us.repo.CreateUser(context, userInput)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return sqlc.User{}, utils.NewError("Email already existed", utils.ErrCodeConflict)
+		if errors.Is(err, sql.ErrNoRows) {
+			return sqlc.User{}, utils.NewError("User not existed!", utils.ErrCodeNotFound)
 		}
-		return sqlc.User{}, utils.WrapError("Failed to create new user", utils.ErrCodeInternal, err)
+		return sqlc.User{}, utils.WrapError("Failed to get user by email", utils.ErrCodeInternal, err)
 	}
 	return userData, nil
 }
-func (us *userServices) FindUserByEmail(ctx *gin.Context, userEmail string) (sqlc.User, error) {
-	userData, err := us.repo.FindUserByEmail(ctx, userEmail)
+func (us *userServices) FindUserByUUID(ctx *gin.Context, userUUID uuid.UUID) (sqlc.User, error) {
+	context := ctx.Request.Context()
+	userData, err := us.repo.FindUserByUUID(context, userUUID)
 	if err != nil {
-		return sqlc.User{}, utils.WrapError("User is not existed", utils.ErrCodeInternal, err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return sqlc.User{}, utils.NewError("User not existed!", utils.ErrCodeNotFound)
+		}
+		return sqlc.User{}, utils.WrapError("Failed to get user by email", utils.ErrCodeInternal, err)
+	}
+	return userData, nil
+}
+func (us *userServices) SoftDeleteUser(ctx *gin.Context, userUuid uuid.UUID) (sqlc.User, error) {
+	context := ctx.Request.Context()
+	userData, err := us.repo.SoftDeleteUser(context, userUuid)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return sqlc.User{}, utils.NewError("User not existed!", utils.ErrCodeNotFound)
+		}
+		return sqlc.User{}, utils.WrapError("Failed to delete user", utils.ErrCodeInternal, err)
+	}
+	return userData, nil
+}
+func (us *userServices) HardDeleteUser(ctx *gin.Context, userUuid uuid.UUID) error {
+	context := ctx.Request.Context()
+	err := us.repo.HardDeleteUser(context, userUuid)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return utils.NewError("User not existed!", utils.ErrCodeNotFound)
+		}
+		return utils.WrapError("Failed to delete user", utils.ErrCodeInternal, err)
+	}
+	return nil
+}
+func (us *userServices) RestoreUser(ctx *gin.Context, userUuid uuid.UUID) (sqlc.User, error) {
+	context := ctx.Request.Context()
+	userData, err := us.repo.RestoreUser(context, userUuid)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return sqlc.User{}, utils.NewError("User not existed!", utils.ErrCodeNotFound)
+		}
+		return sqlc.User{}, utils.WrapError("Failed to restore user", utils.ErrCodeInternal, err)
 	}
 	return userData, nil
 }

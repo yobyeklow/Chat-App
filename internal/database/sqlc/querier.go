@@ -6,11 +6,17 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	FindUserByEmail(ctx context.Context, userEmail string) (User, error)
+	FindUserByUUID(ctx context.Context, userUuid uuid.UUID) (User, error)
+	HardDelete(ctx context.Context, userUuid uuid.UUID) (User, error)
+	RestoreUser(ctx context.Context, userUuid uuid.UUID) (User, error)
+	SoftDelete(ctx context.Context, userUuid uuid.UUID) (User, error)
 }
 
 var _ Querier = (*Queries)(nil)

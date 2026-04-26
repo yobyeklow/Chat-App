@@ -8,6 +8,7 @@ import (
 	"web_socket/internal/validation"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type UserHandler struct {
@@ -20,22 +21,6 @@ func NewUserHandler(service services.UserService) *UserHandler {
 	}
 }
 
-func (uh *UserHandler) CreateUser(ctx *gin.Context) {
-	var input dto.UserInput
-	if err := ctx.ShouldBindJSON(&input); err != nil {
-		utils.ResponseWValidator(ctx, validation.HandleValidationErrors(err))
-		return
-	}
-
-	userInput := input.MapCreateInputToModel()
-	userData, err := uh.service.CreateUser(ctx, userInput)
-	if err != nil {
-		utils.ResponseError(ctx, err)
-		return
-	}
-	userDTO := dto.MapToUserDTO(userData)
-	utils.ResponseSuccess(ctx, http.StatusOK, "Created user successfully!", userDTO)
-}
 func (uh *UserHandler) FindUserByEmail(ctx *gin.Context) {
 	var input dto.GetUserByEmailParam
 	if err := ctx.ShouldBindUri(&input); err != nil {
@@ -50,4 +35,80 @@ func (uh *UserHandler) FindUserByEmail(ctx *gin.Context) {
 	}
 	userDTO := dto.MapToUserDTO(userData)
 	utils.ResponseSuccess(ctx, http.StatusOK, "User found successfully!", userDTO)
+}
+func (uh *UserHandler) FindUserByUUID(ctx *gin.Context) {
+	var input dto.GetUserByUUIDParam
+	if err := ctx.ShouldBindUri(&input); err != nil {
+		utils.ResponseWValidator(ctx, validation.HandleValidationErrors(err))
+		return
+	}
+	userUUID, err := uuid.Parse(input.Uuid)
+	if err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+	userData, err := uh.service.FindUserByUUID(ctx, userUUID)
+	if err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+	userDTO := dto.MapToUserDTO(userData)
+	utils.ResponseSuccess(ctx, http.StatusOK, "User found successfully!", userDTO)
+}
+func (uh *UserHandler) SoftDeleteUser(ctx *gin.Context) {
+	var input dto.GetUserByUUIDParam
+	if err := ctx.ShouldBindUri(&input); err != nil {
+		utils.ResponseWValidator(ctx, validation.HandleValidationErrors(err))
+		return
+	}
+	userUUID, err := uuid.Parse(input.Uuid)
+	if err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+	userData, err := uh.service.SoftDeleteUser(ctx, userUUID)
+	if err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+	userDTO := dto.MapToUserDTO(userData)
+	utils.ResponseSuccess(ctx, http.StatusOK, "Deleted user successfully!", userDTO)
+}
+func (uh *UserHandler) HardDeleteUser(ctx *gin.Context) {
+	var input dto.GetUserByUUIDParam
+	if err := ctx.ShouldBindUri(&input); err != nil {
+		utils.ResponseWValidator(ctx, validation.HandleValidationErrors(err))
+		return
+	}
+	userUUID, err := uuid.Parse(input.Uuid)
+	if err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+	err = uh.service.HardDeleteUser(ctx, userUUID)
+	if err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+
+	utils.ResponseStatusCode(ctx, http.StatusNoContent)
+}
+func (uh *UserHandler) RestoreUser(ctx *gin.Context) {
+	var input dto.GetUserByUUIDParam
+	if err := ctx.ShouldBindUri(&input); err != nil {
+		utils.ResponseWValidator(ctx, validation.HandleValidationErrors(err))
+		return
+	}
+	userUUID, err := uuid.Parse(input.Uuid)
+	if err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+	userData, err := uh.service.RestoreUser(ctx, userUUID)
+	if err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+	userDTO := dto.MapToUserDTO(userData)
+	utils.ResponseSuccess(ctx, http.StatusOK, "Restored user successfully!", userDTO)
 }
