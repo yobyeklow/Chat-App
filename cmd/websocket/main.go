@@ -8,10 +8,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"web_socket/internal/handlers"
-	"web_socket/internal/routes"
-	"web_socket/internal/utils"
+	"web_socket/internal/common/utils"
 	"web_socket/internal/ws"
+	"web_socket/internal/ws/handlers"
+	"web_socket/internal/ws/routes"
 	"web_socket/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -48,8 +48,6 @@ func main() {
 	wsRoutes := routes.NewWSRoutes(wsHandler)
 
 	r := gin.Default()
-	r.LoadHTMLGlob("../../front-end/*.html")
-	r.Static("/static", "../front-end")
 	wsRoutes.Register(r.Group("/api/v1"))
 
 	wsAddr := utils.GetEnv("WS_SERVER_HOST", "localhost") + ":" + utils.GetEnv("WS_SERVER_PORT", "8081")

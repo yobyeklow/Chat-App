@@ -2,9 +2,9 @@ package main
 
 import (
 	"path/filepath"
-	"web_socket/internal/app"
-	"web_socket/internal/config"
-	"web_socket/internal/utils"
+	"web_socket/internal/api/app"
+	"web_socket/internal/common/config"
+	"web_socket/internal/common/utils"
 	"web_socket/pkg/logger"
 
 	"github.com/joho/godotenv"

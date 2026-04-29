@@ -4,5 +4,6 @@
 !.env.example
 logs
 .air.toml
+.air.websocket.toml
 tmp/
 database.md

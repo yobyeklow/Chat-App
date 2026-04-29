@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"web_socket/internal/database/sqlc"
+	"web_socket/internal/common/database/sqlc"
 
 	"github.com/golang-jwt/jwt/v5"
 )

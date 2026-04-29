@@ -26,4 +26,6 @@ migrate-check-version:
 dev:
 	docker compose -f $(DEV_COMPOSE) down
 	docker compose -f $(DEV_COMPOSE) --env-file $(ENV_FILE) up --build
-.PHONY:server sqlc migrate-create migrate-up migrate-down migrate-goto migrate-force migrate-check-version dev access-db
+stop-dev:
+	docker compose -f $(DEV_COMPOSE) down
+.PHONY:stop-dev server sqlc migrate-create migrate-up migrate-down migrate-goto migrate-force migrate-check-version dev access-db

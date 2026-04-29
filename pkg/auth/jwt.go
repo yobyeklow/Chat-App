@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-	"web_socket/internal/database/sqlc"
-	"web_socket/internal/utils"
+	"web_socket/internal/common/database/sqlc"
+	"web_socket/internal/common/utils"
 	"web_socket/pkg/cache"
 
 	"github.com/golang-jwt/jwt/v5"
