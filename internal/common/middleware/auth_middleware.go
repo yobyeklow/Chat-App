@@ -26,13 +26,16 @@ func AuthMiddleware() gin.HandlerFunc {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"Error": "Authorization header missing or invalid",
 			})
+			return
 		}
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
 		_, claims, err := jwtService.ParseToken(tokenString)
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"Error": "Authorization header missing or invalid",
+				"Error": "Authorization header missing or invalid!",
 			})
+			return
 		}
 		if jti, ok := claims["jti"].(string); ok {
 			redis_key := "blacklist:" + jti
@@ -47,8 +50,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		payload, err := jwtService.DecryptAccessTokenPayload(tokenString)
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"Error": "Authorization header missing or invalid",
+				"Error": "Authorization header missing or invalid!",
 			})
+			return
 		}
 		ctx.Set("user_uuid", payload.UserUUID)
 		ctx.Set("user_email", payload.Email)

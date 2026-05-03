@@ -83,28 +83,31 @@ func (js *JWTService) ParseToken(tokenStr string) (*jwt.Token, jwt.MapClaims, er
 	if !ok {
 		return nil, nil, utils.NewError("Invalid token claims", utils.ErrCodeUnauthorized)
 	}
+
 	return token, claims, nil
 }
 func (js *JWTService) DecryptAccessTokenPayload(tokenStr string) (*EncryptedPayload, error) {
 	_, claims, err := js.ParseToken(tokenStr)
+	fmt.Println(claims)
 	if err != nil {
 		return nil, utils.WrapError("Can't parse JWT token", utils.ErrCodeInternal, err)
 	}
 	encryptedPayload, ok := claims["data"].(string)
+
 	if !ok {
 		return nil, utils.WrapError("Encoded data not found", utils.ErrCodeInternal, err)
 	}
 
-	decryptBytes, err := utils.DecryptAES(encryptedPayload, jwt_secret_key)
+	decryptBytes, err := utils.DecryptAES(encryptedPayload, jwt_encrypted_key)
 	if err != nil {
 		return nil, utils.WrapError("Can't decode data", utils.ErrCodeInternal, err)
 	}
-
+	fmt.Println(decryptBytes)
 	var payload EncryptedPayload
 	if err := json.Unmarshal(decryptBytes, &payload); err != nil {
 		return nil, utils.WrapError("Invalid data format", utils.ErrCodeInternal, err)
 	}
-
+	fmt.Println(payload)
 	return &payload, nil
 }
 

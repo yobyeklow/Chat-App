@@ -28,7 +28,7 @@ func DecryptAES(cipherBase64 string, key []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	block, err := aes.NewCipher(cipherText)
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}

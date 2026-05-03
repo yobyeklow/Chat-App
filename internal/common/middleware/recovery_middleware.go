@@ -51,6 +51,7 @@ func RecoveryMiddleware(recoverLogger *zerolog.Logger) gin.HandlerFunc {
 					"code":    "INTERNAL_SERVER_ERROR",
 					"Message": "Try it again later...",
 				})
+
 			}
 		}()
 		ctx.Next()
