@@ -46,7 +46,7 @@ func (gr *SQLGroupRepository) SoftDeleteGroup(ctx context.Context, groupUUID uui
 	return groupData, nil
 }
 func (gr *SQLGroupRepository) HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) error {
-	err := gr.db.HardDeleteGroup(ctx, groupUuid)
+	_, err := gr.db.HardDeleteGroup(ctx, groupUuid)
 	if err != nil {
 		return err
 	}
@@ -100,4 +100,14 @@ func (gr *SQLGroupRepository) RemoveMember(ctx context.Context, arg sqlc.RemoveM
 		return sqlc.GroupMember{}, err
 	}
 	return member, nil
+}
+func (ur *SQLGroupRepository) CountGroups(ctx context.Context, search string, deleted bool) (int64, error) {
+	var params sqlc.CountRecordsParams
+	params.Search = search
+	params.Deleted = &deleted
+	total, err := ur.db.CountRecords(ctx, params)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
 }

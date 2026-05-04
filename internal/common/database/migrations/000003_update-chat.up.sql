@@ -1,4 +1,3 @@
-
 DROP INDEX IF EXISTS idx_dm_users;
 DROP INDEX IF EXISTS idx_dm_created_at;
 

@@ -20,9 +20,13 @@ func (userRoute *UserRoutes) Register(r *gin.RouterGroup) {
 	users := r.Group("/users")
 	users.Use(middleware.AuthMiddleware())
 	{
-		users.GET("/:uuid", userRoute.handler.FindUserByUUID)
-		users.PUT("/:uuid/restore", userRoute.handler.RestoreUser)
-		users.DELETE("/:uuid", userRoute.handler.SoftDeleteUser)
-		users.DELETE("/:uuid/clean", userRoute.handler.HardDeleteUser)
+		users.GET("/:uuid", middleware.RequireSelfOrAdmin("uuid"), userRoute.handler.FindUserByUUID)
+		users.DELETE("/:uuid", middleware.RequireSelfOrAdmin("uuid"), userRoute.handler.SoftDeleteUser)
+		adminMod := users.Group("")
+		adminMod.Use(middleware.RequirePermission(middleware.AdminRoleID))
+		{
+			adminMod.PUT("/:uuid/restore", userRoute.handler.RestoreUser)
+			adminMod.DELETE("/:uuid/clean", userRoute.handler.HardDeleteUser)
+		}
 	}
 }

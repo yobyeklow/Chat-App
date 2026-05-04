@@ -12,6 +12,7 @@ import (
 
 type Querier interface {
 	AddMemberToGroup(ctx context.Context, arg AddMemberToGroupParams) (GroupMember, error)
+	CountRecords(ctx context.Context, arg CountRecordsParams) (int64, error)
 	CreateGroup(ctx context.Context, groupName string) (Group, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	EditDirectMessage(ctx context.Context, arg EditDirectMessageParams) (DirectMessage, error)
@@ -27,7 +28,7 @@ type Querier interface {
 	GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (int32, error)
 	GetUnreadDM(ctx context.Context, currentUserUuid uuid.UUID) (GetUnreadDMRow, error)
 	HardDelete(ctx context.Context, userUuid uuid.UUID) (User, error)
-	HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) error
+	HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) (Group, error)
 	LeaveGroup(ctx context.Context, arg LeaveGroupParams) error
 	ReadAllDirectMessages(ctx context.Context, arg ReadAllDirectMessagesParams) (int64, error)
 	ReadDirectMessage(ctx context.Context, arg ReadDirectMessageParams) (DirectMessage, error)

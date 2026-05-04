@@ -88,7 +88,7 @@ func (js *JWTService) ParseToken(tokenStr string) (*jwt.Token, jwt.MapClaims, er
 }
 func (js *JWTService) DecryptAccessTokenPayload(tokenStr string) (*EncryptedPayload, error) {
 	_, claims, err := js.ParseToken(tokenStr)
-	fmt.Println(claims)
+
 	if err != nil {
 		return nil, utils.WrapError("Can't parse JWT token", utils.ErrCodeInternal, err)
 	}
@@ -102,12 +102,12 @@ func (js *JWTService) DecryptAccessTokenPayload(tokenStr string) (*EncryptedPayl
 	if err != nil {
 		return nil, utils.WrapError("Can't decode data", utils.ErrCodeInternal, err)
 	}
-	fmt.Println(decryptBytes)
+
 	var payload EncryptedPayload
 	if err := json.Unmarshal(decryptBytes, &payload); err != nil {
 		return nil, utils.WrapError("Invalid data format", utils.ErrCodeInternal, err)
 	}
-	fmt.Println(payload)
+
 	return &payload, nil
 }
 

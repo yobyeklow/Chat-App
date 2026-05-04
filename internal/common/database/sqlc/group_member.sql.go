@@ -13,7 +13,7 @@ import (
 )
 
 const addMemberToGroup = `-- name: AddMemberToGroup :one
-INSERT INTO group_members(group_id, member_id, member_role, jointed_at)
+INSERT INTO group_members(group_id, user_id, member_role, jointed_at)
 SELECT
     (SELECT group_id FROM groups WHERE group_uuid = $1::UUID),
     (SELECT user_id FROM users WHERE user_uuid = $2::UUID),

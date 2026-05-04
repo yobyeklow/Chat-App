@@ -12,17 +12,17 @@ server:
 sqlc:
 	sqlc generate
 migrate-create:
-	migrate create -ext sql -dir=$(pwd)./internal/database/migrations -seq $(NAME)
+	migrate create -ext sql -dir=$(pwd)./internal/common/database/migrations -seq $(NAME)
 migrate-up:
-	migrate -path=$(pwd)./internal/database/migrations -database "$(CONNECTION_STR)" up
+	migrate -path=$(pwd)./internal/common/database/migrations -database "$(CONNECTION_STR)" up
 migrate-down:
-	migrate -path=$(pwd)./internal/database/migrations -database "$(CONNECTION_STR)" down 1
+	migrate -path=$(pwd)./internal/common/database/migrations -database "$(CONNECTION_STR)" down 1
 migrate-force:
-	migrate -path=$(pwd)./internal/database/migrations -database "$(CONNECTION_STR)" force $(VERSION)
+	migrate -path=$(pwd)./internal/common/database/migrations -database "$(CONNECTION_STR)" force $(VERSION)
 migrate-goto:
-	migrate -path=$(pwd)./internal/database/migrations -database "$(CONNECTION_STR)" goto $(VERSION)
+	migrate -path=$(pwd)./internal/common/database/migrations -database "$(CONNECTION_STR)" goto $(VERSION)
 migrate-check-version:
-	migrate -path=$(pwd)./internal/database/migrations -database "$(CONNECTION_STR)" version
+	migrate -path=$(pwd)./internal/common/database/migrations -database "$(CONNECTION_STR)" version
 dev:
 	docker compose -f $(DEV_COMPOSE) down
 	docker compose -f $(DEV_COMPOSE) --env-file $(ENV_FILE) up --build

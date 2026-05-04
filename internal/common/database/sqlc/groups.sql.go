@@ -12,6 +12,31 @@ import (
 	"github.com/google/uuid"
 )
 
+const countRecords = `-- name: CountRecords :one
+SELECT count(*)
+FROM groups
+WHERE (
+    $1::bool IS NULL
+    OR (group_deleted_at IS NOT NULL AND $1::bool IS TRUE)
+    OR (group_deleted_at IS NULL AND $1::bool IS FALSE)
+) AND (
+    $2::TEXT IS NULL
+    OR $2::TEXT = ''
+    OR group_name ILIKE '%' || $2 || '%')
+`
+
+type CountRecordsParams struct {
+	Deleted *bool  `json:"deleted"`
+	Search  string `json:"search"`
+}
+
+func (q *Queries) CountRecords(ctx context.Context, arg CountRecordsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRecords, arg.Deleted, arg.Search)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createGroup = `-- name: CreateGroup :one
 INSERT INTO groups(
     group_name
@@ -43,19 +68,25 @@ SELECT DISTINCT
     gm.jointed_at
 FROM groups g
 INNER JOIN group_members gm on g.group_id = gm.group_id
-WHERE gm.member_id = (
+WHERE gm.user_id = (
     SELECT user_id FROM users WHERE user_uuid = $1::UUID
 )
     AND gm.left_at IS NULL
     AND g.group_deleted_at IS NULL
+    AND (
+            $2 = ''
+            OR to_tsvector('english', COALESCE(g.group_name, '')) @@
+            plainto_tsquery('english', $2::TEXT)
+        )
 ORDER BY gm.jointed_at DESC
-LIMIT $3 OFFSET $2
+LIMIT $4 OFFSET $3
 `
 
 type GetAllGroupsParams struct {
-	UserUuid  uuid.UUID `json:"user_uuid"`
-	Offsetarg int32     `json:"offsetarg"`
-	Limitarg  int32     `json:"limitarg"`
+	UserUuid  uuid.UUID   `json:"user_uuid"`
+	Search    interface{} `json:"search"`
+	Offsetarg int32       `json:"offsetarg"`
+	Limitarg  int32       `json:"limitarg"`
 }
 
 type GetAllGroupsRow struct {
@@ -68,7 +99,12 @@ type GetAllGroupsRow struct {
 }
 
 func (q *Queries) GetAllGroups(ctx context.Context, arg GetAllGroupsParams) ([]GetAllGroupsRow, error) {
-	rows, err := q.db.Query(ctx, getAllGroups, arg.UserUuid, arg.Offsetarg, arg.Limitarg)
+	rows, err := q.db.Query(ctx, getAllGroups,
+		arg.UserUuid,
+		arg.Search,
+		arg.Offsetarg,
+		arg.Limitarg,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +140,7 @@ SELECT
     gm.jointed_at
 FROM groups g
 INNER JOIN  group_members gm ON g.group_id = gm.group_id
-WHERE gm.member_id = (
+WHERE gm.user_id = (
     SELECT user_id FROM users WHERE user_uuid = $1::UUID
 )
     AND gm.left_at IS NULL
@@ -143,7 +179,7 @@ func (q *Queries) GetGroupByUUID(ctx context.Context, arg GetGroupByUUIDParams) 
 const getMemberRole = `-- name: GetMemberRole :one
 SELECT member_role
 FROM group_members
-WHERE member_id = (SELECT user_id FROM users WHERE user_uuid = $1::UUID)
+WHERE user_id = (SELECT user_id FROM users WHERE user_uuid = $1::UUID)
     AND group_id = (SELECT group_id FROM groups WHERE group_uuid = $2::UUID)
     AND left_at IS NULL
 `
@@ -160,20 +196,29 @@ func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (i
 	return member_role, err
 }
 
-const hardDeleteGroup = `-- name: HardDeleteGroup :exec
+const hardDeleteGroup = `-- name: HardDeleteGroup :one
 DELETE FROM groups
-WHERE group_uuid = $1::UUID and group_deleted_at IS NULL
+WHERE group_uuid = $1::UUID and group_deleted_at IS NOT NULL RETURNING group_id, group_uuid, group_name, group_created_at, group_updated_at, group_deleted_at
 `
 
-func (q *Queries) HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) error {
-	_, err := q.db.Exec(ctx, hardDeleteGroup, groupUuid)
-	return err
+func (q *Queries) HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) (Group, error) {
+	row := q.db.QueryRow(ctx, hardDeleteGroup, groupUuid)
+	var i Group
+	err := row.Scan(
+		&i.GroupID,
+		&i.GroupUuid,
+		&i.GroupName,
+		&i.GroupCreatedAt,
+		&i.GroupUpdatedAt,
+		&i.GroupDeletedAt,
+	)
+	return i, err
 }
 
 const leaveGroup = `-- name: LeaveGroup :exec
 UPDATE group_members
 SET left_at = now()
-WHERE member_id = (SELECT user_id FROM users WHERE user_uuid = $1::UUID)
+WHERE user_id = (SELECT user_id FROM users WHERE user_uuid = $1::UUID)
     AND group_id = (SELECT group_id FROM groups WHERE group_uuid = $2::UUID)
     AND left_at IS NULL
 `

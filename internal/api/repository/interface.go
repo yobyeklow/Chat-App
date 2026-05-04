@@ -25,6 +25,7 @@ type GroupRepository interface {
 	UpdateGroup(ctx context.Context, arg sqlc.UpdateGroupParams) (sqlc.Group, error)
 	SoftDeleteGroup(ctx context.Context, groupUuid uuid.UUID) (sqlc.Group, error)
 	HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) error
+	CountGroups(ctx context.Context, search string, deleted bool) (int64, error)
 
 	LeaveGroup(ctx context.Context, arg sqlc.LeaveGroupParams) error
 	AddMemberToGroup(ctx context.Context, arg sqlc.AddMemberToGroupParams) (sqlc.GroupMember, error)

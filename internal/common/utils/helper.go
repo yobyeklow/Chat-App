@@ -53,3 +53,13 @@ func MustGetWorkingDir() string {
 	}
 	return dir
 }
+func MapRoleText(status int) string {
+	switch status {
+	case 1:
+		return "User"
+	case 2:
+		return "Adminstrator"
+	default:
+		return "None"
+	}
+}

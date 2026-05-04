@@ -66,6 +66,7 @@ func (uh *UserHandler) SoftDeleteUser(ctx *gin.Context) {
 		utils.ResponseError(ctx, err)
 		return
 	}
+
 	userData, err := uh.service.SoftDeleteUser(ctx, userUUID)
 	if err != nil {
 		utils.ResponseError(ctx, err)

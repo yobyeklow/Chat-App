@@ -23,9 +23,14 @@ type AuthService interface {
 }
 type GroupService interface {
 	CreateGroup(ctx *gin.Context, userUUID uuid.UUID, groupName string) (sqlc.Group, error)
-	GetAllGroups(ctx *gin.Context, userUUID uuid.UUID, page int32, limit int32) ([]sqlc.GetAllGroupsRow, error)
+	GetAllGroups(ctx *gin.Context, userUUID uuid.UUID, search string, page int32, limit int32, deleted bool) ([]sqlc.GetAllGroupsRow, int32, error)
 	UpdateGroup(ctx *gin.Context, userUUID uuid.UUID, userRole int32, groupName string, groupUUID uuid.UUID) (sqlc.Group, error)
 	SoftDeleteGroup(ctx *gin.Context, userRole int32, userUUID uuid.UUID, groupUUID uuid.UUID) (sqlc.Group, error)
 	HardDeleteGroup(ctx *gin.Context, groupUUID uuid.UUID) error
 	LeaveGroup(ctx *gin.Context, userUUID uuid.UUID, groupUUID uuid.UUID) error
+	JoinGroup(ctx *gin.Context, groupUUID uuid.UUID, userUUID uuid.UUID, memberRole int32) error
+	GetGroupMembers(ctx *gin.Context, groupUUID uuid.UUID, userUUID uuid.UUID, page int32, limit int32) ([]sqlc.GetGroupMembersRow, error)
+	UpdateMemberRole(ctx *gin.Context, memberRole int32, groupUUID uuid.UUID, userUUID uuid.UUID) (sqlc.GroupMember, error)
+	RemoveMember(ctx *gin.Context, groupUUID uuid.UUID, userUUID uuid.UUID) (sqlc.GroupMember, error)
+	GetMemberInfo(ctx *gin.Context, groupUUID uuid.UUID, curUserUUID uuid.UUID, targetUserUUID uuid.UUID) (sqlc.GetMemberInfoRow, error)
 }

@@ -14,7 +14,7 @@ ORDER BY gm.jointed_at DESC
 LIMIT sqlc.arg(limitArg) OFFSET sqlc.arg(offsetArg);
 
 -- name: AddMemberToGroup :one
-INSERT INTO group_members(group_id, member_id, member_role, jointed_at)
+INSERT INTO group_members(group_id, user_id, member_role, jointed_at)
 SELECT
     (SELECT group_id FROM groups WHERE group_uuid = sqlc.arg(group_uuid)::UUID),
     (SELECT user_id FROM users WHERE user_uuid = sqlc.arg(user_uuid)::UUID),

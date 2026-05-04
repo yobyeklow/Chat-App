@@ -1,6 +1,9 @@
 package dto
 
-import "web_socket/internal/common/database/sqlc"
+import (
+	"web_socket/internal/common/database/sqlc"
+	"web_socket/internal/common/utils"
+)
 
 type UserInput struct {
 	UUID     string `json:"uuid"`
@@ -35,7 +38,7 @@ func MapToUserDTO(userInput sqlc.User) *UserDTO {
 	dto := &UserDTO{
 		Email:     userInput.UserEmail,
 		Status:    mapStatusText(int(userInput.UserStatus)),
-		Role:      mapStatusText(int(userInput.UserRole)),
+		Role:      utils.MapRoleText(int(userInput.UserRole)),
 		CreatedAt: userInput.UserCreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 	if userInput.UserDeletedAt.Valid {
@@ -53,16 +56,6 @@ func mapStatusText(status int) string {
 		return "Inactive"
 	case 3:
 		return "Banned"
-	default:
-		return "None"
-	}
-}
-func mapRoleText(status int) string {
-	switch status {
-	case 1:
-		return "User"
-	case 2:
-		return "Adminstrator"
 	default:
 		return "None"
 	}

@@ -150,7 +150,8 @@ func (q *Queries) RestoreUser(ctx context.Context, userUuid uuid.UUID) (User, er
 const softDelete = `-- name: SoftDelete :one
 UPDATE users
 SET
-    user_deleted_at = now()
+    user_deleted_at = now(),
+    user_status = 2
 WHERE
     user_uuid = $1::UUID AND user_deleted_at IS NULL
 RETURNING user_id, user_uuid, user_email, user_password, user_role, user_status, user_created_at, user_updated_at, user_deleted_at

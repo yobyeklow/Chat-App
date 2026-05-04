@@ -18,7 +18,8 @@ WHERE user_uuid = sqlc.arg(user_uuid)::UUID and user_deleted_at IS NULL;
 -- name: SoftDelete :one
 UPDATE users
 SET
-    user_deleted_at = now()
+    user_deleted_at = now(),
+    user_status = 2
 WHERE
     user_uuid = sqlc.arg(user_uuid)::UUID AND user_deleted_at IS NULL
 RETURNING *;
