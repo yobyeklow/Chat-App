@@ -38,22 +38,75 @@ func (q *Queries) CountRecords(ctx context.Context, arg CountRecordsParams) (int
 }
 
 const createGroup = `-- name: CreateGroup :one
-INSERT INTO groups(
-    group_name
-) VALUES ($1)
-RETURNING group_id, group_uuid, group_name, group_created_at, group_updated_at, group_deleted_at
+WITH new_group AS (
+    INSERT INTO groups (group_name)
+    VALUES ($1)
+    RETURNING group_id, group_uuid, group_name, group_created_at, group_updated_at, group_deleted_at
+),
+new_conversation AS (
+    INSERT INTO conversations (conversation_type, reference_id)
+    SELECT 2, ng.group_id
+    FROM new_group ng
+    RETURNING conversation_id, conversation_uuid, conversation_type, reference_id, last_message_id, last_message_at, conversation_created_at, conversation_updated_at
+),
+creator_user AS(
+    SELECT user_id FROM users
+    WHERE user_uuid =  $2::UUID
+        AND user_deleted_at IS NULL
+        AND user_status = 1
+),
+new_member AS(
+    INSERT INTO group_members(group_id,user_id,member_role)
+    SELECT  ng.group_id,cu.user_id,3
+    FROM new_group ng,creator_user cu
+    ON CONFLICT(group_id,user_id) WHERE left_at IS NULL DO NOTHING
+    RETURNING group_member_id, group_id, user_id, member_role, jointed_at, left_at
+),
+new_participant AS(
+    INSERT INTO conversation_participants (conversation_id, user_id)
+    SELECT nc.conversation_id, nm.user_id
+    FROM new_conversation nc, new_member nm
+    ON CONFLICT (conversation_id,user_id) WHERE left_at IS NULL DO NOTHING
+    RETURNING participant_id, conversation_id, user_id, last_read_message_id, last_read_at, is_muted, joined_at, left_at
+)
+SELECT
+    ng.group_id,
+    ng.group_uuid,
+    ng.group_name,
+    ng.group_created_at,
+    ng.group_updated_at,
+    nc.conversation_id,
+    nc.conversation_uuid
+FROM new_group ng
+JOIN new_conversation nc ON true
 `
 
-func (q *Queries) CreateGroup(ctx context.Context, groupName string) (Group, error) {
-	row := q.db.QueryRow(ctx, createGroup, groupName)
-	var i Group
+type CreateGroupParams struct {
+	GroupName string    `json:"group_name"`
+	UserUuid  uuid.UUID `json:"user_uuid"`
+}
+
+type CreateGroupRow struct {
+	GroupID          int32     `json:"group_id"`
+	GroupUuid        uuid.UUID `json:"group_uuid"`
+	GroupName        string    `json:"group_name"`
+	GroupCreatedAt   time.Time `json:"group_created_at"`
+	GroupUpdatedAt   time.Time `json:"group_updated_at"`
+	ConversationID   int32     `json:"conversation_id"`
+	ConversationUuid uuid.UUID `json:"conversation_uuid"`
+}
+
+func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (CreateGroupRow, error) {
+	row := q.db.QueryRow(ctx, createGroup, arg.GroupName, arg.UserUuid)
+	var i CreateGroupRow
 	err := row.Scan(
 		&i.GroupID,
 		&i.GroupUuid,
 		&i.GroupName,
 		&i.GroupCreatedAt,
 		&i.GroupUpdatedAt,
-		&i.GroupDeletedAt,
+		&i.ConversationID,
+		&i.ConversationUuid,
 	)
 	return i, err
 }
@@ -196,31 +249,43 @@ func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (i
 	return member_role, err
 }
 
-const hardDeleteGroup = `-- name: HardDeleteGroup :one
+const hardDeleteGroup = `-- name: HardDeleteGroup :exec
 DELETE FROM groups
-WHERE group_uuid = $1::UUID and group_deleted_at IS NOT NULL RETURNING group_id, group_uuid, group_name, group_created_at, group_updated_at, group_deleted_at
+WHERE group_uuid = $1::UUID and group_deleted_at IS NOT NULL
 `
 
-func (q *Queries) HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) (Group, error) {
-	row := q.db.QueryRow(ctx, hardDeleteGroup, groupUuid)
-	var i Group
-	err := row.Scan(
-		&i.GroupID,
-		&i.GroupUuid,
-		&i.GroupName,
-		&i.GroupCreatedAt,
-		&i.GroupUpdatedAt,
-		&i.GroupDeletedAt,
-	)
-	return i, err
+func (q *Queries) HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) error {
+	_, err := q.db.Exec(ctx, hardDeleteGroup, groupUuid)
+	return err
 }
 
 const leaveGroup = `-- name: LeaveGroup :exec
-UPDATE group_members
+WITH uid AS (
+        SELECT user_id FROM users
+        WHERE user_uuid = $1::UUID
+),
+gid AS (
+    SELECT group_id FROM groups
+    WHERE group_uuid = $2::UUID
+        AND group_deleted_at IS NULL
+),
+cid AS (
+    SELECT conversation_id FROM conversations
+    WHERE reference_id = (SELECT group_id FROM gid)
+        AND conversation_type = 2   -- 2 = Group chat
+),
+leave_member AS (
+    UPDATE group_members
+    SET left_at = now()
+    WHERE user_id = (SELECT user_id FROM uid)
+        AND group_id = (SELECT group_id FROM gid)
+        AND left_at IS NULL
+)
+UPDATE conversation_participants
 SET left_at = now()
-WHERE user_id = (SELECT user_id FROM users WHERE user_uuid = $1::UUID)
-    AND group_id = (SELECT group_id FROM groups WHERE group_uuid = $2::UUID)
-    AND left_at IS NULL
+WHERE conversation_id = (SELECT conversation_id FROM cid)
+  AND user_id = (SELECT user_id FROM uid)
+  AND left_at IS NULL
 `
 
 type LeaveGroupParams struct {

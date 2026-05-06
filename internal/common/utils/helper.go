@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 	"web_socket/pkg/logger"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/rs/zerolog"
 )
 
@@ -16,6 +18,21 @@ func GetEnv(key string, defaultValue string) string {
 		return defaultValue
 	}
 	return val
+}
+func ToTimestamptz(t *time.Time) pgtype.Timestamptz {
+	if t == nil {
+		return pgtype.Timestamptz{Valid: false}
+	}
+	return pgtype.Timestamptz{
+		Time:  *t,
+		Valid: true,
+	}
+}
+func ToTimeTime(pgTs pgtype.Timestamptz) time.Time {
+	if pgTs.Valid {
+		return pgTs.Time
+	}
+	return time.Time{}
 }
 func GetEnvInt(key string, defaultVal int) int {
 	val := os.Getenv(key)

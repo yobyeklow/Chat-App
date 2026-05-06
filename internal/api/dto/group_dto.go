@@ -11,8 +11,7 @@ type GroupCreateInput struct {
 	GroupName string `json:"group_name" binding:"min=3,max=50,search,required"`
 }
 type AddMemberInput struct {
-	MemberRole int32  `json:"member_role" binding:"required,oneof=1 2 3"`
-	UserUuid   string `json:"user_uuid" binding:"required"`
+	UserUuid string `json:"user_uuid" binding:"required"`
 }
 type GroupInputJSON struct {
 	GroupName  string `json:"group_name" binding:"omitempty,min=3,max=50,search"`

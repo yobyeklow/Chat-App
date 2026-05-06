@@ -30,29 +30,24 @@ func NewGroupService(repo repository.GroupRepository) GroupService {
 		repo: repo,
 	}
 }
-func (gs *groupService) CreateGroup(ctx *gin.Context, userUUID uuid.UUID, groupName string) (sqlc.Group, error) {
+func (gs *groupService) CreateGroup(ctx *gin.Context, groupName string, userUUID uuid.UUID) (sqlc.CreateGroupRow, error) {
 	context := ctx.Request.Context()
 	if strings.TrimSpace(groupName) == "" {
-		return sqlc.Group{}, utils.NewError("Group name is required", utils.ErrCodeBadRequest)
+		return sqlc.CreateGroupRow{}, utils.NewError("Group name is required", utils.ErrCodeBadRequest)
 	}
-
-	groupData, err := gs.repo.CreateGroup(context, groupName)
+	arg := sqlc.CreateGroupParams{
+		GroupName: groupName,
+		UserUuid:  userUUID,
+	}
+	groupData, err := gs.repo.CreateGroup(context, arg)
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return sqlc.Group{}, utils.WrapError("Duplicate group name", utils.ErrCodeConflict, err)
+			return sqlc.CreateGroupRow{}, utils.WrapError("Duplicate group name", utils.ErrCodeConflict, err)
 		}
-		return sqlc.Group{}, utils.WrapError("Failed to create group", utils.ErrCodeInternal, err)
+		return sqlc.CreateGroupRow{}, utils.WrapError("Failed to create group", utils.ErrCodeInternal, err)
 	}
-	arg := sqlc.AddMemberToGroupParams{
-		GroupUuid:  groupData.GroupUuid,
-		UserUuid:   userUUID,
-		MemberRole: OwnerGroupRole,
-	}
-	_, err = gs.repo.AddMemberToGroup(context, arg)
-	if err != nil {
-		return sqlc.Group{}, utils.WrapError("Failed to create group", utils.ErrCodeInternal, err)
-	}
+
 	return groupData, nil
 }
 func (gs *groupService) GetAllGroups(ctx *gin.Context, userUUID uuid.UUID, search string, page int32, limit int32, deleted bool) ([]sqlc.GetAllGroupsRow, int32, error) {
@@ -129,7 +124,7 @@ func (gs *groupService) HardDeleteGroup(ctx *gin.Context, groupUUID uuid.UUID) e
 	}
 	return nil
 }
-func (gs *groupService) LeaveGroup(ctx *gin.Context, userUUID uuid.UUID, groupUUID uuid.UUID) error {
+func (gs *groupService) GetMemberRole(ctx *gin.Context, userUUID uuid.UUID, groupUUID uuid.UUID) (int32, error) {
 	context := ctx.Request.Context()
 	roleArg := sqlc.GetMemberRoleParams{
 		UserUuid:  userUUID,
@@ -137,7 +132,18 @@ func (gs *groupService) LeaveGroup(ctx *gin.Context, userUUID uuid.UUID, groupUU
 	}
 	role, err := gs.repo.GetGroupMemberRole(context, roleArg)
 	if err != nil {
-		return utils.NewError("User does not belong to this group.", utils.ErrCodeBadRequest)
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, utils.NewError("The user is not a member of this group, or this group does not exist.", utils.ErrCodeBadRequest)
+		}
+		return 0, utils.WrapError("Failed to get member role", utils.ErrCodeInternal, err)
+	}
+	return role, nil
+}
+func (gs *groupService) LeaveGroup(ctx *gin.Context, userUUID uuid.UUID, groupUUID uuid.UUID) error {
+	context := ctx.Request.Context()
+	role, err := gs.GetMemberRole(ctx, userUUID, groupUUID)
+	if err != nil {
+		return err
 	}
 	if role == OwnerGroupRole {
 		return utils.NewError("You should transfer 'Owner Key' before do this action!", utils.ErrCodeUnauthorized)
@@ -156,40 +162,48 @@ func (gs *groupService) LeaveGroup(ctx *gin.Context, userUUID uuid.UUID, groupUU
 	}
 	return nil
 }
-func (gs *groupService) JoinGroup(ctx *gin.Context, groupUUID uuid.UUID, userUUID uuid.UUID, memberRole int32) error {
+func (gs *groupService) JoinGroup(ctx *gin.Context, groupUUID uuid.UUID, targetUserUUID uuid.UUID) error {
 	context := ctx.Request.Context()
-	roleArg := sqlc.GetMemberRoleParams{
-		UserUuid:  userUUID,
-		GroupUuid: groupUUID,
+	//Check authorization
+	curUserUUIDData := ctx.GetString("user_uuid")
+	curUserUUID, err := uuid.Parse(curUserUUIDData)
+	if err != nil {
+		return utils.NewError("Invalid User UUID request", utils.ErrCodeBadRequest)
 	}
-	_, err := gs.repo.GetGroupMemberRole(context, roleArg)
-	if err == nil {
+	curUserRole := ctx.GetInt32("user_role")
+	err = gs.verifyOwnerOrAdmin(context, curUserUUID, curUserRole, groupUUID)
+	if err != nil {
+		return err
+	}
+
+	role, err := gs.GetMemberRole(ctx, targetUserUUID, groupUUID)
+	if role != 0 {
 		return utils.NewError("This user has joined the group", utils.ErrCodeBadRequest)
 	}
 
 	joinGrArg := sqlc.AddMemberToGroupParams{
-		GroupUuid:  groupUUID,
-		UserUuid:   userUUID,
-		MemberRole: memberRole,
+		GroupUuid: groupUUID,
+		UserUuid:  targetUserUUID,
 	}
-	_, err = gs.repo.AddMemberToGroup(context, joinGrArg)
+	err = gs.repo.AddMemberToGroup(context, joinGrArg)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return utils.NewError("Group does not existe", utils.ErrCodeBadRequest)
+			return utils.NewError("Group does not exist or user is invalid", utils.ErrCodeBadRequest)
 		}
 		return utils.WrapError("Failed to join group", utils.ErrCodeInternal, err)
 	}
+
 	return nil
 }
-func (gs *groupService) verifyOwnerOrAdmin(ctx context.Context, userUUID uuid.UUID, userRole int32, groupUUID uuid.UUID) error {
-	if userRole != AdminAccountRole {
+func (gs *groupService) verifyOwnerOrAdmin(ctx context.Context, userUUID uuid.UUID, accountRole int32, groupUUID uuid.UUID) error {
+	if accountRole != AdminAccountRole {
 		arg := sqlc.GetMemberRoleParams{
 			UserUuid:  userUUID,
 			GroupUuid: groupUUID,
 		}
 		role, err := gs.repo.GetGroupMemberRole(ctx, arg)
 		if err != nil {
-			return utils.NewError("User does not belong to this group.", utils.ErrCodeBadRequest)
+			return utils.NewError("The user is not a member of this group, or this group does not exist.", utils.ErrCodeBadRequest)
 		}
 		if role != OwnerGroupRole {
 			return utils.NewError("You're not allowed to do this!", utils.ErrCodeUnauthorized)
@@ -199,13 +213,10 @@ func (gs *groupService) verifyOwnerOrAdmin(ctx context.Context, userUUID uuid.UU
 }
 func (gs *groupService) GetGroupMembers(ctx *gin.Context, groupUUID uuid.UUID, userUUID uuid.UUID, page int32, limit int32) ([]sqlc.GetGroupMembersRow, error) {
 	context := ctx.Request.Context()
-	roleCheckArg := sqlc.GetMemberRoleParams{
-		UserUuid:  userUUID,
-		GroupUuid: groupUUID,
-	}
-	_, err := gs.repo.GetGroupMemberRole(ctx, roleCheckArg)
+
+	_, err := gs.GetMemberRole(ctx, userUUID, groupUUID)
 	if err != nil {
-		return []sqlc.GetGroupMembersRow{}, utils.NewError("User does not belong to this group.", utils.ErrCodeBadRequest)
+		return []sqlc.GetGroupMembersRow{}, err
 	}
 	if limit <= 0 {
 		envLimit := utils.GetEnvInt("LIMIT_ITEM_ON_PER_PAGE", 10)
@@ -231,7 +242,7 @@ func (gs *groupService) GetGroupMembers(ctx *gin.Context, groupUUID uuid.UUID, u
 	}
 	return groupsData, nil
 }
-func (gs *groupService) UpdateMemberRole(ctx *gin.Context, memberRole int32, groupUUID uuid.UUID, userUUID uuid.UUID) (sqlc.GroupMember, error) {
+func (gs *groupService) UpdateMemberRole(ctx *gin.Context, memberRole int32, groupUUID uuid.UUID, targetUserUUID uuid.UUID) (sqlc.GroupMember, error) {
 	context := ctx.Request.Context()
 
 	userUUIDData := ctx.GetString("user_uuid")
@@ -247,7 +258,7 @@ func (gs *groupService) UpdateMemberRole(ctx *gin.Context, memberRole int32, gro
 	arg := sqlc.UpdateMemberRoleParams{
 		MemberRole: memberRole,
 		GroupUuid:  groupUUID,
-		UserUuid:   userUUID,
+		UserUuid:   targetUserUUID,
 	}
 	userData, err := gs.repo.UpdateMemberRole(context, arg)
 	if err != nil {
@@ -289,13 +300,9 @@ func (gs *groupService) RemoveMember(ctx *gin.Context, groupUUID uuid.UUID, user
 }
 func (gs *groupService) GetMemberInfo(ctx *gin.Context, groupUUID uuid.UUID, curUserUUID uuid.UUID, targetUserUUID uuid.UUID) (sqlc.GetMemberInfoRow, error) {
 	context := ctx.Request.Context()
-	roleCheckArg := sqlc.GetMemberRoleParams{
-		UserUuid:  curUserUUID,
-		GroupUuid: groupUUID,
-	}
-	_, err := gs.repo.GetGroupMemberRole(ctx, roleCheckArg)
+	_, err := gs.GetMemberRole(ctx, curUserUUID, groupUUID)
 	if err != nil {
-		return sqlc.GetMemberInfoRow{}, utils.NewError("User does not belong to this group.", utils.ErrCodeBadRequest)
+		return sqlc.GetMemberInfoRow{}, err
 	}
 	arg := sqlc.GetMemberInfoParams{
 		GroupUuid: groupUUID,

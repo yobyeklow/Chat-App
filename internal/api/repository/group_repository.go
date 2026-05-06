@@ -17,10 +17,10 @@ func NewSQLGroupRepository(db sqlc.Querier) GroupRepository {
 	}
 }
 
-func (gr *SQLGroupRepository) CreateGroup(ctx context.Context, groupName string) (sqlc.Group, error) {
-	groupData, err := gr.db.CreateGroup(ctx, groupName)
+func (gr *SQLGroupRepository) CreateGroup(ctx context.Context, arg sqlc.CreateGroupParams) (sqlc.CreateGroupRow, error) {
+	groupData, err := gr.db.CreateGroup(ctx, arg)
 	if err != nil {
-		return sqlc.Group{}, err
+		return sqlc.CreateGroupRow{}, err
 	}
 	return groupData, nil
 }
@@ -46,7 +46,11 @@ func (gr *SQLGroupRepository) SoftDeleteGroup(ctx context.Context, groupUUID uui
 	return groupData, nil
 }
 func (gr *SQLGroupRepository) HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) error {
-	_, err := gr.db.HardDeleteGroup(ctx, groupUuid)
+	err := gr.db.HardDeleteConversation(ctx, groupUuid)
+	if err != nil {
+		return err
+	}
+	err = gr.db.HardDeleteGroup(ctx, groupUuid)
 	if err != nil {
 		return err
 	}
@@ -59,13 +63,14 @@ func (gr *SQLGroupRepository) LeaveGroup(ctx context.Context, arg sqlc.LeaveGrou
 	}
 	return nil
 }
-func (gr *SQLGroupRepository) AddMemberToGroup(ctx context.Context, arg sqlc.AddMemberToGroupParams) (sqlc.GroupMember, error) {
-	groupData, err := gr.db.AddMemberToGroup(ctx, arg)
+func (gr *SQLGroupRepository) AddMemberToGroup(ctx context.Context, arg sqlc.AddMemberToGroupParams) error {
+	err := gr.db.AddMemberToGroup(ctx, arg)
 	if err != nil {
-		return sqlc.GroupMember{}, err
+		return err
 	}
-	return groupData, nil
+	return nil
 }
+
 func (gr *SQLGroupRepository) GetGroupMembers(ctx context.Context, arg sqlc.GetGroupMembersParams) ([]sqlc.GetGroupMembersRow, error) {
 	members, err := gr.db.GetGroupMembers(ctx, arg)
 	if err != nil {

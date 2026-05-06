@@ -24,6 +24,7 @@ func (groupRoute *GroupRoutes) Register(r *gin.RouterGroup) {
 		group.GET("/getAll", groupRoute.handler.GetAllGroups)
 		group.PUT("/:uuid", groupRoute.handler.UpdateGroup)
 		group.DELETE("/:uuid", groupRoute.handler.SoftDeleteGroup)
+		group.DELETE("/:uuid/clean", groupRoute.handler.HardDeleteGroup)
 		group.POST("/:uuid/leave", groupRoute.handler.LeaveGroup)
 		group.GET("/:uuid/members", groupRoute.handler.GetGroupMembers)
 		group.GET("/:uuid/members/:user_uuid", groupRoute.handler.GetMemberInfo)

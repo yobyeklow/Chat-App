@@ -37,13 +37,18 @@ func (gh *GroupHandler) CreateGroup(ctx *gin.Context) {
 		utils.ResponseError(ctx, utils.NewError("Invalid User ID", utils.ErrCodeBadRequest))
 		return
 	}
-	groupData, err := gh.service.CreateGroup(ctx, userUUID, input.GroupName)
+	groupData, err := gh.service.CreateGroup(ctx, input.GroupName, userUUID)
 	if err != nil {
 		utils.ResponseError(ctx, err)
 		return
 	}
-	groupDTO := dto.MapToGroupDTO(groupData)
-	utils.ResponseSuccess(ctx, http.StatusOK, "Created group successfully!", groupDTO)
+	dto := dto.GroupDTO{
+		GroupUUID: groupData.GroupUuid.String(),
+		GroupName: groupData.GroupName,
+		CreatedAt: groupData.GroupCreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+
+	utils.ResponseSuccess(ctx, http.StatusOK, "Created group successfully!", dto)
 }
 func (gh *GroupHandler) GetAllGroups(ctx *gin.Context) {
 	var input dto.GroupSearchParams
@@ -162,7 +167,7 @@ func (gh *GroupHandler) AddMemberToGroup(ctx *gin.Context) {
 		return
 	}
 
-	userUUID, err := uuid.Parse(inputJSON.UserUuid)
+	targetUserUUID, err := uuid.Parse(inputJSON.UserUuid)
 	if err != nil {
 		utils.ResponseError(ctx, utils.NewError("Invalid User ID", utils.ErrCodeBadRequest))
 		return
@@ -172,7 +177,7 @@ func (gh *GroupHandler) AddMemberToGroup(ctx *gin.Context) {
 		utils.ResponseError(ctx, utils.NewError("Invalid Group ID", utils.ErrCodeBadRequest))
 		return
 	}
-	err = gh.service.JoinGroup(ctx, groupUUID, userUUID, inputJSON.MemberRole)
+	err = gh.service.JoinGroup(ctx, groupUUID, targetUserUUID)
 	if err != nil {
 		utils.ResponseError(ctx, err)
 		return

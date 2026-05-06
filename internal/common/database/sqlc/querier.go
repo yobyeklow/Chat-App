@@ -11,39 +11,39 @@ import (
 )
 
 type Querier interface {
-	AddMemberToGroup(ctx context.Context, arg AddMemberToGroupParams) (GroupMember, error)
+	AddMemberToGroup(ctx context.Context, arg AddMemberToGroupParams) error
+	AddParticipantToConversation(ctx context.Context, arg AddParticipantToConversationParams) error
 	CountRecords(ctx context.Context, arg CountRecordsParams) (int64, error)
-	CreateGroup(ctx context.Context, groupName string) (Group, error)
+	CreateDMConversation(ctx context.Context) (int32, error)
+	CreateGroup(ctx context.Context, arg CreateGroupParams) (CreateGroupRow, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
-	EditDirectMessage(ctx context.Context, arg EditDirectMessageParams) (DirectMessage, error)
 	EditMessage(ctx context.Context, arg EditMessageParams) (Message, error)
+	FindDMConversation(ctx context.Context, arg FindDMConversationParams) (int32, error)
 	FindUserByEmail(ctx context.Context, userEmail string) (User, error)
 	FindUserByUUID(ctx context.Context, userUuid uuid.UUID) (User, error)
 	GetAllGroups(ctx context.Context, arg GetAllGroupsParams) ([]GetAllGroupsRow, error)
-	GetDirectMessageWithUser(ctx context.Context, arg GetDirectMessageWithUserParams) ([]GetDirectMessageWithUserRow, error)
-	GetDirectMessagesConversations(ctx context.Context, arg GetDirectMessagesConversationsParams) ([]GetDirectMessagesConversationsRow, error)
+	GetDMConversation(ctx context.Context, curUserID int32) ([]GetDMConversationRow, error)
 	GetGroupByUUID(ctx context.Context, arg GetGroupByUUIDParams) (GetGroupByUUIDRow, error)
+	GetGroupConversation(ctx context.Context, curUserID int32) ([]GetGroupConversationRow, error)
 	GetGroupMembers(ctx context.Context, arg GetGroupMembersParams) ([]GetGroupMembersRow, error)
 	GetMemberInfo(ctx context.Context, arg GetMemberInfoParams) (GetMemberInfoRow, error)
 	GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (int32, error)
-	GetUnreadDM(ctx context.Context, currentUserUuid uuid.UUID) (GetUnreadDMRow, error)
+	GetMessages(ctx context.Context, arg GetMessagesParams) ([]GetMessagesRow, error)
 	HardDelete(ctx context.Context, userUuid uuid.UUID) (User, error)
-	HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) (Group, error)
+	HardDeleteConversation(ctx context.Context, groupUuid uuid.UUID) error
+	HardDeleteGroup(ctx context.Context, groupUuid uuid.UUID) error
+	LeaveConversation(ctx context.Context, arg LeaveConversationParams) error
 	LeaveGroup(ctx context.Context, arg LeaveGroupParams) error
-	ReadAllDirectMessages(ctx context.Context, arg ReadAllDirectMessagesParams) (int64, error)
-	ReadDirectMessage(ctx context.Context, arg ReadDirectMessageParams) (DirectMessage, error)
 	RemoveMember(ctx context.Context, arg RemoveMemberParams) (GroupMember, error)
 	RestoreUser(ctx context.Context, userUuid uuid.UUID) (User, error)
-	SearchDirectMessagesWithUser(ctx context.Context, arg SearchDirectMessagesWithUserParams) ([]SearchDirectMessagesWithUserRow, error)
 	SearchMessageInGroup(ctx context.Context, arg SearchMessageInGroupParams) ([]SearchMessageInGroupRow, error)
-	SendMessageToGroup(ctx context.Context, arg SendMessageToGroupParams) (SendMessageToGroupRow, error)
-	SentDirectMessages(ctx context.Context, arg SentDirectMessagesParams) (DirectMessage, error)
+	SendMessage(ctx context.Context, arg SendMessageParams) (int32, error)
 	SoftDelete(ctx context.Context, userUuid uuid.UUID) (User, error)
-	SoftDeleteDirectMessage(ctx context.Context, arg SoftDeleteDirectMessageParams) (DirectMessage, error)
 	SoftDeleteGroup(ctx context.Context, groupUuid uuid.UUID) (Group, error)
 	SoftDeleteMessage(ctx context.Context, arg SoftDeleteMessageParams) (Message, error)
 	UpdateGroup(ctx context.Context, arg UpdateGroupParams) (Group, error)
 	UpdateMemberRole(ctx context.Context, arg UpdateMemberRoleParams) (GroupMember, error)
+	ValidateReply(ctx context.Context, arg ValidateReplyParams) (bool, error)
 }
 
 var _ Querier = (*Queries)(nil)

@@ -58,6 +58,7 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		NewUserModule(ctx),
 		NewAuthModule(ctx, tokenService, cacheService),
 		NewGroupModule(ctx, tokenService),
+		NewChatModule(ctx, tokenService, cacheService),
 	}
 	routes.RegisterRoutes(r, tokenService, cacheService, getModulesRoute(modules)...)
 	return &Application{

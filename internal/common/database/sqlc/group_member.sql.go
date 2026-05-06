@@ -12,34 +12,51 @@ import (
 	"github.com/google/uuid"
 )
 
-const addMemberToGroup = `-- name: AddMemberToGroup :one
-INSERT INTO group_members(group_id, user_id, member_role, jointed_at)
-SELECT
-    (SELECT group_id FROM groups WHERE group_uuid = $1::UUID),
-    (SELECT user_id FROM users WHERE user_uuid = $2::UUID),
-    $3,
-    now()
-RETURNING group_member_id, group_id, user_id, member_role, jointed_at, left_at
+const addMemberToGroup = `-- name: AddMemberToGroup :exec
+WITH target_group AS(
+    SELECT group_id
+    FROM groups
+    WHERE group_uuid = $1::UUID
+        AND group_deleted_at IS NULL
+),
+target_user AS(
+    SELECT user_id
+    FROM users
+    WHERE user_uuid = $2::UUID
+        AND user_deleted_at IS NULL
+        AND user_status = 1
+),
+insert_member AS(
+    INSERT INTO group_members (group_id, user_id, member_role)
+    SELECT tg.group_id, tu.user_id, 1
+    FROM target_group tg, target_user tu
+    ON CONFLICT (group_id,user_id) WHERE left_at IS NULL DO UPDATE
+        SET left_at = NULL,
+            jointed_at = now(),
+            member_role = EXCLUDED.member_role
+    RETURNING group_member_id, user_id
+),
+target_conversation AS(
+    SELECT conversation_id FROM conversations
+    WHERE reference_id = (SELECT group_id FROM target_group)
+        AND conversation_type = 2
+)
+INSERT INTO conversation_participants (conversation_id, user_id)
+SELECT tc.conversation_id, im.user_id
+FROM target_conversation tc, insert_member im
+ON CONFLICT (conversation_id,user_id) WHERE left_at IS NULL DO UPDATE
+    SET left_at = NULL,
+        joined_at = now()
 `
 
 type AddMemberToGroupParams struct {
-	GroupUuid  uuid.UUID `json:"group_uuid"`
-	UserUuid   uuid.UUID `json:"user_uuid"`
-	MemberRole int32     `json:"member_role"`
+	GroupUuid uuid.UUID `json:"group_uuid"`
+	UserUuid  uuid.UUID `json:"user_uuid"`
 }
 
-func (q *Queries) AddMemberToGroup(ctx context.Context, arg AddMemberToGroupParams) (GroupMember, error) {
-	row := q.db.QueryRow(ctx, addMemberToGroup, arg.GroupUuid, arg.UserUuid, arg.MemberRole)
-	var i GroupMember
-	err := row.Scan(
-		&i.GroupMemberID,
-		&i.GroupID,
-		&i.UserID,
-		&i.MemberRole,
-		&i.JointedAt,
-		&i.LeftAt,
-	)
-	return i, err
+func (q *Queries) AddMemberToGroup(ctx context.Context, arg AddMemberToGroupParams) error {
+	_, err := q.db.Exec(ctx, addMemberToGroup, arg.GroupUuid, arg.UserUuid)
+	return err
 }
 
 const getGroupMembers = `-- name: GetGroupMembers :many
